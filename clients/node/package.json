@@ -15,8 +15,12 @@
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.10",
+    "typescript": "^7.0.2"
   },
   "engines": { "node": ">=18" },
   "license": "MIT",
