@@ -40,5 +40,10 @@ export class VM {
   async portForward(port: number, options: { public?: boolean; customDomain?: string } = {}): Promise<Forward> { const forward = await this.apiRequest<Omit<Forward, "close">>(`/containers/${this.id}/ports`, { method: "POST", body: JSON.stringify({ port, ...options }) }); return { ...forward, close: () => this.closePort(port) }; }
   async ports() { return this.apiRequest<Omit<Forward, "close">[]>(`/containers/${this.id}/ports`); }
   async closePort(port: number | Forward) { const value = typeof port === "number" ? port : port.containerPort; await this.apiRequest<void>(`/containers/${this.id}/ports/${value}`, { method: "DELETE" }); }
+  async fsRead(path: string) { const response = await fetch(new URL(`/containers/${this.id}/fs/read?path=${encodeURIComponent(path)}`, this.api.endpoint), { headers: { authorization: `Bearer ${this.token}` } }); if (!response.ok) throw new Error(`HTTP ${response.status}`); return new Uint8Array(await response.arrayBuffer()); }
+  async fsWrite(path: string, data: Uint8Array | string) { const body = typeof data === "string" ? data : new Blob([data.buffer as ArrayBuffer]); const response = await fetch(new URL(`/containers/${this.id}/fs/write?path=${encodeURIComponent(path)}`, this.api.endpoint), { method: "PUT", headers: { authorization: `Bearer ${this.token}` }, body }); if (!response.ok) throw new Error(`HTTP ${response.status}`); }
+  async fsListdir(path = "/") { return this.apiRequest<{ name: string; path: string; type: string }[]>(`/containers/${this.id}/fs/list?path=${encodeURIComponent(path)}`); }
+  async fsMkdir(path: string) { await this.apiRequest<void>(`/containers/${this.id}/fs/mkdir`, { method: "POST", body: JSON.stringify({ path }) }); }
+  async fsRemove(path: string) { await this.apiRequest<void>(`/containers/${this.id}/fs/remove?path=${encodeURIComponent(path)}`, { method: "DELETE" }); }
   private apiRequest<T>(path: string, init?: RequestInit) { return this.withToken().request<T>(path, init); }
 }

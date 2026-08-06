@@ -36,4 +36,16 @@ describe("orchestrator HTTP API", () => {
     const body = await created.json(); const response = await fetch(new Request(`http://localhost/containers/${body.containerId}/ports`, { method: "POST", headers: { authorization: `Bearer ${body.accessToken}`, "content-type": "application/json" }, body: JSON.stringify({ port: 3000 }) }));
     expect(response.status).toBe(201); expect((await response.json()).url).toMatch(/^https:\/\//);
   });
+
+  test("keeps filesystem operations inside the container root", async () => {
+    const { fetch } = setup();
+    const created = await fetch(new Request("http://localhost/containers", { method: "POST", headers: { ...auth(), "content-type": "application/json" }, body: JSON.stringify({ image: "alpine", policy: { scopes: ["fs.read", "fs.write"] } }) }));
+    const body = await created.json(); const headers = { authorization: `Bearer ${body.accessToken}` };
+    const write = await fetch(new Request(`http://localhost/containers/${body.containerId}/fs/write?path=%2Fworkspace%2Fhello.txt`, { method: "PUT", headers, body: "hello" }));
+    expect(write.status).toBe(204);
+    const read = await fetch(new Request(`http://localhost/containers/${body.containerId}/fs/read?path=%2Fworkspace%2Fhello.txt`, { headers }));
+    expect(read.status).toBe(200); expect(await read.text()).toBe("hello");
+    const traversal = await fetch(new Request(`http://localhost/containers/${body.containerId}/fs/read?path=%2F..%2Fsecret`, { headers }));
+    expect(traversal.status).toBe(400);
+  });
 });
