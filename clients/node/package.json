@@ -1,5 +1,5 @@
 {
-  "name": "minicomputer",
+  "name": "@minicomputer/client",
   "version": "0.1.0",
   "description": "Node and browser client for the Minicomputer container API",
   "type": "module",

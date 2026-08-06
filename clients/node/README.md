@@ -1,13 +1,13 @@
-# minicomputer
+# @minicomputer/client
 
 Client SDK for the Minicomputer API. It works in Node.js 18+, Bun and browser environments that provide `fetch`, `crypto.subtle` and `AbortSignal.timeout`.
 
 ```bash
-npm install minicomputer
+npm install @minicomputer/client
 ```
 
 ```ts
-import { Minicomputer } from "minicomputer";
+import { Minicomputer } from "@minicomputer/client";
 
 const api = new Minicomputer({
   endpoint: "http://localhost:8080",

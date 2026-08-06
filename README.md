@@ -121,13 +121,13 @@ services:
 ### 2. Install the client
 
 ```bash
-npm install minicomputer   # works on Node 18+, Bun, Deno and the browser
+npm install @minicomputer/client   # works on Node 18+, Bun, Deno and the browser
 ```
 
 ### 3. Drive it
 
 ```ts
-import { Minicomputer } from "minicomputer";
+import { Minicomputer } from "@minicomputer/client";
 
 const api = new Minicomputer({
   endpoint: process.env.MINICOMPUTER_URL, // default: http://localhost:8080
@@ -446,7 +446,7 @@ orchestrator/                 TypeScript / Bun / ElysiaJS microservice
     docker/                   the Docker driver (the only one implemented today)
     index.ts                  registry + MINICOMPUTER_BACKEND selection
   src/proxy/                  Host-based edge router and port-forward proxy
-clients/node/                 Node-compatible SDK (minicomputer)
+clients/node/                 Node-compatible SDK (@minicomputer/client)
   tsconfig.json              TypeScript compiler configuration
 ```
 
