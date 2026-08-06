@@ -2,9 +2,9 @@
 
 check:
 	bun run typecheck
-	cargo fmt --manifest-path worker/Cargo.toml -- --check
-	cargo clippy --manifest-path worker/Cargo.toml --all-targets -- -D warnings
+	cd worker && cargo fmt -- --check
+	cd worker && cargo clippy --all-targets -- -D warnings
 
 test:
 	bun test orchestrator/tests
-	cargo test --manifest-path worker/Cargo.toml
+	cd worker && cargo test

@@ -9,8 +9,8 @@ Legend: **P0** blocking for the next phase · **P1** needed for the release · *
 ## Phase 0 — Foundations
 
 - [ ] Monorepo layout (`worker/`, `orchestrator/`, `clients/node/`, `docs/`, `examples/`) **P0**
-- [ ] Rust toolchain pinned via `rust-toolchain.toml`; musl targets for x86_64 and aarch64 **P0**
-- [ ] Bun + TypeScript strict config, shared `tsconfig.base.json` **P0**
+- [ ] Rust toolchain pinned via `worker/rust-toolchain.toml`; musl targets for x86_64 and aarch64 **P0**
+- [ ] Bun + TypeScript strict config, maintained per TypeScript package **P0**
 - [ ] Lint/format: `rustfmt` + `clippy -D warnings`, `biome` for TS **P0**
 - [ ] Conventional commits + changesets for versioning **P1**
 - [ ] CI skeleton: build worker (both arches), typecheck, lint **P0**

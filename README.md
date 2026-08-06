@@ -425,13 +425,16 @@ Set `MINICOMPUTER_DEV=true` for frame-level protocol tracing between orchestrato
 
 ```
 worker/                       Rust control agent injected into every container
+  rust-toolchain.toml        Rust toolchain and musl target pinning
 orchestrator/                 TypeScript / Bun / ElysiaJS microservice
+  tsconfig.json              TypeScript compiler configuration
   src/backends/               container backend drivers
     backend.ts                the ContainerBackend interface every driver implements
     docker/                   the Docker driver (the only one implemented today)
     index.ts                  registry + MINICOMPUTER_BACKEND selection
   src/proxy/                  Host-based edge router and port-forward proxy
 clients/node/                 Node-compatible SDK (@minicomputer/client)
+  tsconfig.json              TypeScript compiler configuration
 ```
 
 ## License
