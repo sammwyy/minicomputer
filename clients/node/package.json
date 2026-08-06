@@ -1,1 +1,24 @@
-{"name":"@minicomputer/client","version":"0.1.0","type":"module","exports":"./dist/index.js","types":"./dist/index.d.ts"}
+{
+  "name": "minicomputer",
+  "version": "0.1.0",
+  "description": "Node and browser client for the Minicomputer container API",
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "publishConfig": { "access": "public" }
+}

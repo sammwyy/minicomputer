@@ -1,0 +1,23 @@
+services:
+  minicomputer:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: minicomputer:local
+    restart: unless-stopped
+    ports:
+      - "${MINICOMPUTER_PORT:-8080}:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MINICOMPUTER_PORT: "8080"
+      MINICOMPUTER_JWT_SECRET: ${MINICOMPUTER_JWT_SECRET:?Set MINICOMPUTER_JWT_SECRET in deploy/.env}
+      MINICOMPUTER_BACKEND: docker
+      MINICOMPUTER_BACKEND_ENDPOINT: /var/run/docker.sock
+      MINICOMPUTER_PROXY_DOMAIN: ${MINICOMPUTER_PROXY_DOMAIN:-localhost}
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp

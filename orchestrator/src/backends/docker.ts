@@ -1,0 +1,39 @@
+import { request as httpRequest } from "node:http";
+import { ApiError } from "../errors.ts";
+import type { BackendContainer, BackendStats, ContainerBackend, ContainerSpec, ContainerState } from "../types.ts";
+
+interface DockerResponse { status: number; body: Uint8Array }
+
+export class DockerBackend implements ContainerBackend {
+  readonly name = "docker";
+  private readonly endpoint: URL | string;
+  constructor(endpoint = process.env.MINICOMPUTER_BACKEND_ENDPOINT ?? "/var/run/docker.sock") { this.endpoint = endpoint.startsWith("unix://") ? endpoint.slice("unix://".length) : endpoint.startsWith("/") ? endpoint : new URL(endpoint); }
+  capabilities() { return { pause: true, diskQuota: false, userns: false, checkpoint: false }; }
+  async probe() { const response = await this.request("GET", "/version"); if (response.status >= 400) throw new ApiError(503, "BACKEND_UNAVAILABLE", "Docker daemon rejected the version request"); const body = this.json<{ Version?: string }>(response); return { ok: true, version: body.Version ?? "unknown" }; }
+  async create(spec: ContainerSpec) {
+    const response = await this.request("POST", `/containers/create?name=${encodeURIComponent(`minicomputer-${spec.id}`)}`, { Image: spec.image, Env: Object.entries(spec.env).map(([key, value]) => `${key}=${value}`), Labels: spec.labels, HostConfig: { Memory: parseMemory(spec.limits.memory), NanoCpus: spec.limits.cpus ? Math.round(spec.limits.cpus * 1e9) : undefined, PidsLimit: spec.limits.pids } });
+    if (response.status >= 400) throw this.error(response, "Docker could not create the container");
+    const body = this.json<{ Id: string }>(response); return { id: body.Id, image: spec.image, state: "creating" as const, createdAt: new Date().toISOString(), labels: spec.labels };
+  }
+  async start(id: string) { await this.expectSuccess("POST", `/containers/${encodeURIComponent(id)}/start`, "Docker could not start the container", [204, 304]); }
+  async pause(id: string) { await this.expectSuccess("POST", `/containers/${encodeURIComponent(id)}/pause`, "Docker could not pause the container", [204]); }
+  async resume(id: string) { await this.expectSuccess("POST", `/containers/${encodeURIComponent(id)}/unpause`, "Docker could not resume the container", [204]); }
+  async stop(id: string) { await this.expectSuccess("POST", `/containers/${encodeURIComponent(id)}/stop?t=10`, "Docker could not stop the container", [204, 304]); }
+  async remove(id: string) { await this.expectSuccess("DELETE", `/containers/${encodeURIComponent(id)}?force=true`, "Docker could not remove the container", [204, 404]); }
+  async inspect(id: string) { const response = await this.request("GET", `/containers/${encodeURIComponent(id)}/json`); if (response.status >= 400) throw this.error(response, "Docker could not inspect the container"); return mapContainer(this.json<DockerContainer>(response)); }
+  async list() { const response = await this.request("GET", "/containers/json?all=true&filters=%7B%22label%22%3A%5B%22minicomputer.managed%3Dtrue%22%5D%7D"); if (response.status >= 400) throw this.error(response, "Docker could not list containers"); return this.json<DockerContainerSummary[]>(response).map(mapSummary); }
+  async stats(id: string) { const response = await this.request("GET", `/containers/${encodeURIComponent(id)}/stats?stream=false`); if (response.status >= 400) throw this.error(response, "Docker could not read container stats"); const body = this.json<DockerStats>(response); return { cpu: cpuPercent(body), memory: body.memory_stats?.usage ?? 0, disk: 0, netRx: Object.values(body.networks ?? {}).reduce((sum, value) => sum + value.rx_bytes, 0), netTx: Object.values(body.networks ?? {}).reduce((sum, value) => sum + value.tx_bytes, 0) } satisfies BackendStats; }
+  private async expectSuccess(method: string, path: string, message: string, accepted: number[]) { const response = await this.request(method, path); if (!accepted.includes(response.status)) throw this.error(response, message); }
+  private async request(method: string, path: string, body?: unknown): Promise<DockerResponse> { return new Promise((resolve, reject) => { const payload = body === undefined ? undefined : Buffer.from(JSON.stringify(body)); const options = typeof this.endpoint === "string" ? { method, socketPath: this.endpoint, path, headers: { "content-type": "application/json", ...(payload ? { "content-length": payload.length } : {}) } } : { method, hostname: this.endpoint.hostname, port: Number(this.endpoint.port || 80), path, headers: { "content-type": "application/json", ...(payload ? { "content-length": payload.length } : {}) } }; const request = httpRequest(options, response => { const chunks: Buffer[] = []; response.on("data", chunk => chunks.push(chunk)); response.on("end", () => resolve({ status: response.statusCode ?? 500, body: new Uint8Array(Buffer.concat(chunks)) })); }); request.on("error", reject); if (payload) request.write(payload); request.end(); }); }
+  private json<T>(response: DockerResponse) { try { return JSON.parse(Buffer.from(response.body).toString("utf8")) as T; } catch { throw new ApiError(502, "BACKEND_INVALID_RESPONSE", "Docker returned invalid JSON"); } }
+  private error(response: DockerResponse, fallback: string) { let message = fallback; try { message = this.json<{ message?: string }>(response).message ?? fallback; } catch {} return new ApiError(response.status === 404 ? 404 : 502, "BACKEND_ERROR", message); }
+}
+
+interface DockerContainer { Id: string; Name: string; Config?: { Image?: string; Labels?: Record<string, string> }; Created?: string; State?: { Status?: string }; }
+interface DockerContainerSummary { Id: string; Image?: string; Created?: number; Status?: string; Labels?: Record<string, string> }
+interface DockerStats { cpu_stats?: { cpu_usage?: { total_usage?: number; percpu_usage?: number[] }; system_cpu_usage?: number; online_cpus?: number }; precpu_stats?: { cpu_usage?: { total_usage?: number }; system_cpu_usage?: number }; memory_stats?: { usage?: number }; networks?: Record<string, { rx_bytes: number; tx_bytes: number }> }
+function state(value?: string): ContainerState { if (value === "paused") return "paused"; if (value === "exited" || value === "dead") return "stopped"; if (value === "created" || value === "restarting") return "creating"; return "ready"; }
+function mapContainer(container: DockerContainer): BackendContainer { return { id: container.Id, image: container.Config?.Image ?? "", state: state(container.State?.Status), createdAt: container.Created ?? new Date().toISOString(), labels: container.Config?.Labels ?? {} }; }
+function mapSummary(container: DockerContainerSummary): BackendContainer { return { id: container.Id, image: container.Image ?? "", state: state(container.Status?.split(" ")[0]), createdAt: container.Created ? new Date(container.Created * 1000).toISOString() : new Date().toISOString(), labels: container.Labels ?? {} }; }
+function parseMemory(value?: string) { if (!value) return undefined; const match = value.trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(b|k|kb|m|mb|g|gb)?$/); if (!match) throw new ApiError(400, "INVALID_MEMORY", "Invalid memory limit"); const units: Record<string, number> = { b: 1, k: 1024, kb: 1024, m: 1024 ** 2, mb: 1024 ** 2, g: 1024 ** 3, gb: 1024 ** 3 }; return Math.round(Number(match[1]) * (units[match[2] ?? "b"] ?? 1)); }
+function cpuPercent(stats: DockerStats) { const cpu = stats.cpu_stats?.cpu_usage?.total_usage ?? 0; const previous = stats.precpu_stats?.cpu_usage?.total_usage ?? 0; const system = stats.cpu_stats?.system_cpu_usage ?? 0; const previousSystem = stats.precpu_stats?.system_cpu_usage ?? 0; const cpus = stats.cpu_stats?.online_cpus ?? stats.cpu_stats?.cpu_usage?.percpu_usage?.length ?? 1; return previousSystem && system > previousSystem ? ((cpu - previous) / (system - previousSystem)) * cpus * 100 : 0; }

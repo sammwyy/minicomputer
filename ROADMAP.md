@@ -157,7 +157,7 @@ Legend: **P0** blocking for the next phase · **P1** needed for the release · *
 - [ ] Multi-arch orchestrator image on GHCR, worker binaries embedded **P0**
 - [ ] `docker-compose.yml` examples: standalone, and with RabbitMQ **P1**
 - [ ] Helm chart **P2**
-- [ ] `@minicomputer/client` published to npm with provenance **P1**
+- [ ] `minicomputer` published to npm with provenance **P1**
 - [ ] OpenAPI spec + generated HTTP reference **P1**
 - [ ] Documented WebSocket and worker wire protocols (for third-party clients) **P1**
 - [ ] Examples: web terminal, CI runner, AI agent sandbox, file-manager UI, live preview URLs **P1**

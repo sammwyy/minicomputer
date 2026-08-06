@@ -1,12 +1,14 @@
 {
-  "name": "minicomputer",
+  "name": "minicomputer-repo",
   "private": true,
   "workspaces": ["orchestrator", "clients/node"],
   "scripts": {
     "test": "make test",
     "test:ts": "bun test orchestrator/tests",
     "test:rust": "cd worker && cargo test",
-    "typecheck": "tsc -b orchestrator clients/node"
+    "typecheck": "tsc -b orchestrator clients/node",
+    "build:client": "npm --prefix clients/node run build",
+    "pack:client": "cd clients/node && npm pack --dry-run"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

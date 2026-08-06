@@ -89,6 +89,15 @@ docker run -d --name minicomputer \
 
 `MINICOMPUTER_BACKEND` selects the container backend driver. `docker` is the only implemented one today — mounting the Docker socket is a property of *that driver*, not of Minicomputer. Everything above this line in the stack (API, SDK, tokens, proxy) is backend-independent.
 
+For a local Docker deployment without Docker-in-Docker, use the supplied Compose setup:
+
+```bash
+cp deploy/.env.example deploy/.env
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up --build -d
+```
+
+The compose service mounts the host socket at `/var/run/docker.sock`. Set `DOCKER_SOCKET` when the host socket uses another path. See [deploy/README.md](./deploy/README.md) for the security implications.
+
 Or with Compose:
 
 ```yaml
@@ -112,13 +121,13 @@ services:
 ### 2. Install the client
 
 ```bash
-npm install @minicomputer/client   # works on Node 18+, Bun, Deno and the browser
+npm install minicomputer   # works on Node 18+, Bun, Deno and the browser
 ```
 
 ### 3. Drive it
 
 ```ts
-import { Minicomputer } from "@minicomputer/client";
+import { Minicomputer } from "minicomputer";
 
 const api = new Minicomputer({
   endpoint: process.env.MINICOMPUTER_URL, // default: http://localhost:8080
@@ -423,6 +432,8 @@ Set `MINICOMPUTER_DEV=true` for frame-level protocol tracing between orchestrato
 
 Run the complete local verification suite with `make check` and `make test`. The TypeScript suite includes unit, HTTP integration and live-server SDK end-to-end tests; the Rust suite covers worker frame encoding and size validation.
 
+Build and inspect the public client package with `npm run build:client` and `npm run pack:client`. Publish it from `clients/node/` with `npm publish --access public` after incrementing its version.
+
 ## Project layout
 
 ```
@@ -435,7 +446,7 @@ orchestrator/                 TypeScript / Bun / ElysiaJS microservice
     docker/                   the Docker driver (the only one implemented today)
     index.ts                  registry + MINICOMPUTER_BACKEND selection
   src/proxy/                  Host-based edge router and port-forward proxy
-clients/node/                 Node-compatible SDK (@minicomputer/client)
+clients/node/                 Node-compatible SDK (minicomputer)
   tsconfig.json              TypeScript compiler configuration
 ```
 

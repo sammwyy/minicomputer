@@ -11,7 +11,7 @@ This document describes how Minicomputer is put together: the components, the tr
 | **Orchestrator** | TypeScript, Bun, ElysiaJS | Public API. Authenticates callers, drives a container backend driver, bridges clients to workers, proxies forwarded ports, emits events. |
 | **Backend driver** | TypeScript, in-process | Adapts one container technology (Docker today) to the internal `ContainerBackend` interface. Selected at boot by `MINICOMPUTER_BACKEND`. |
 | **Worker** | Rust (static, musl) | Runs *inside* every container as PID 1. Executes processes, serves filesystem operations, reports stats. |
-| **Node client** | TypeScript (`@minicomputer/client`) | SDK for backends (admin mode) and browsers (delegated mode). |
+| **Node client** | TypeScript (`minicomputer`) | SDK for backends (admin mode) and browsers (delegated mode). |
 | **RabbitMQ** | optional | Event fan-out, and optionally an alternative command intake. |
 
 Three trust zones:
