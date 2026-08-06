@@ -1,0 +1,14 @@
+{
+  "name": "minicomputer",
+  "private": true,
+  "workspaces": ["orchestrator", "clients/node"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc -b orchestrator clients/node"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
+  }
+}
