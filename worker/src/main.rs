@@ -9,7 +9,9 @@ async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind(listen).await?;
     let (mut stream, _) = listener.accept().await?;
     let frame = read_frame(&mut stream).await?;
-    if frame.first() != Some(&0) { return Ok(()); }
+    if frame.first() != Some(&0) {
+        return Ok(());
+    }
     stream.write_all(&[0, 0, 0, 1, 1]).await?;
     Ok(())
 }

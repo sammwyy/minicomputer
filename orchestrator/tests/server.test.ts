@@ -3,6 +3,7 @@ import { signHs256 } from "../src/auth.ts";
 import { MockBackend } from "../src/backends/mock.ts";
 import { ContainerRegistry } from "../src/registry.ts";
 import { createServer } from "../src/server.ts";
+import { PortRegistry } from "../src/ports.ts";
 
 const secret = "test-secret";
 function setup() { const registry = new ContainerRegistry(new MockBackend()); return { registry, fetch: createServer(registry, { secret }) }; }
@@ -26,5 +27,13 @@ describe("orchestrator HTTP API", () => {
     const a = await first.json(); const b = await second.json();
     const response = await fetch(new Request(`http://localhost/containers/${b.containerId}`, { headers: { authorization: `Bearer ${a.accessToken}` } }));
     expect(response.status).toBe(403);
+  });
+
+  test("opens and closes a scoped forward", async () => {
+    const { registry } = setup(); const ports = new PortRegistry({ domain: "example.test", scheme: "https", style: "flat", separator: "-", ttl: 60000 });
+    const fetch = createServer(registry, { secret, ports });
+    const created = await fetch(new Request("http://localhost/containers", { method: "POST", headers: { ...auth(), "content-type": "application/json" }, body: JSON.stringify({ image: "alpine", policy: { portForward: true, scopes: ["ports"] } }) }));
+    const body = await created.json(); const response = await fetch(new Request(`http://localhost/containers/${body.containerId}/ports`, { method: "POST", headers: { authorization: `Bearer ${body.accessToken}`, "content-type": "application/json" }, body: JSON.stringify({ port: 3000 }) }));
+    expect(response.status).toBe(201); expect((await response.json()).url).toMatch(/^https:\/\//);
   });
 });

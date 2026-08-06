@@ -1,6 +1,7 @@
 export interface ClientOptions { endpoint?: string; secret?: string; token?: string; timeout?: number }
 export interface CreateOptions { memory?: string; cpus?: number; disk?: string; ttl?: number; env?: Record<string, string>; policy?: { portForward?: boolean; allowSubdomains?: boolean; scopes?: string[] } }
 export interface ContainerInfo { containerId: string; accessToken: string; expiresAt: string; state: string; image: string; limits: Record<string, unknown> }
+export interface Forward { nonce: string; host: string; url: string; containerPort: number; public: boolean; expiresAt: string; close(): Promise<void> }
 
 export class Minicomputer {
   readonly endpoint: string; readonly token?: string; private readonly timeout: number;
@@ -36,5 +37,8 @@ export class VM {
   async pause() { await this.withToken().request(`/containers/${this.id}/pause`, { method: "POST", body: "{}" }); }
   async resume() { await this.withToken().request(`/containers/${this.id}/resume`, { method: "POST", body: "{}" }); }
   async destroy() { await this.apiRequest<void>(`/containers/${this.id}`, { method: "DELETE" }); }
+  async portForward(port: number, options: { public?: boolean; customDomain?: string } = {}): Promise<Forward> { const forward = await this.apiRequest<Omit<Forward, "close">>(`/containers/${this.id}/ports`, { method: "POST", body: JSON.stringify({ port, ...options }) }); return { ...forward, close: () => this.closePort(port) }; }
+  async ports() { return this.apiRequest<Omit<Forward, "close">[]>(`/containers/${this.id}/ports`); }
+  async closePort(port: number | Forward) { const value = typeof port === "number" ? port : port.containerPort; await this.apiRequest<void>(`/containers/${this.id}/ports/${value}`, { method: "DELETE" }); }
   private apiRequest<T>(path: string, init?: RequestInit) { return this.withToken().request<T>(path, init); }
 }

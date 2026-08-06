@@ -3,8 +3,9 @@ import { ApiError, errorResponse } from "./errors.ts";
 import { requireScope, signHs256, verifyJwt } from "./auth.ts";
 import { ContainerRegistry } from "./registry.ts";
 import type { Limits, Policy, Scope } from "./types.ts";
+import { PortRegistry } from "./ports.ts";
 
-export interface ServerOptions { secret?: string; issuer?: string; audience?: string; backend?: ConstructorParameters<typeof ContainerRegistry>[0]; }
+export interface ServerOptions { secret?: string; issuer?: string; audience?: string; backend?: ConstructorParameters<typeof ContainerRegistry>[0]; ports?: PortRegistry; }
 const allScopes: Scope[] = ["exec", "fs.read", "fs.write", "fs.watch", "stats", "ports"];
 const defaultPolicy = (): Policy => ({ portForward: false, allowSubdomains: false, scopes: allScopes });
 
@@ -20,6 +21,7 @@ export function createServer(registry: ContainerRegistry, options: ServerOptions
   };
   const json = async (request: Request) => { try { return await request.json() as Record<string, unknown>; } catch { throw new ApiError(400, "INVALID_JSON", "Request body must be JSON"); } };
   const publicRecord = (r: ReturnType<ContainerRegistry["get"]>, token: string) => ({ containerId: r.id, accessToken: token, expiresAt: new Date(Date.now() + 3600000).toISOString(), state: r.state, image: r.image, limits: r.limits, policy: r.policy });
+  const ports = options.ports;
   return async function fetch(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url); const path = url.pathname;
@@ -41,9 +43,12 @@ export function createServer(registry: ContainerRegistry, options: ServerOptions
       if (claims.sub?.startsWith("container:") && claims.sub !== `container:${id}`) throw new ApiError(403, "FORBIDDEN", "Container access denied");
       if (request.method === "GET" && !action) return Response.json(await registry.sync(id));
       if (request.method === "GET" && action === "stats") { requireScope(claims, "stats"); return Response.json(await registry.stats(id)); }
+      if (request.method === "GET" && action === "ports") { requireScope(claims, "ports"); return Response.json(ports?.list(id) ?? []); }
+      if (request.method === "POST" && action === "ports") { requireScope(claims, "ports"); if (!record.policy.portForward) throw new ApiError(403, "FORBIDDEN", "Port forwarding is disabled"); if (!ports) throw new ApiError(501, "NOT_CONFIGURED", "Port forwarding is not configured"); const body = await json(request); return Response.json(ports.open(id, Number(body.port), body.public !== false, typeof body.customDomain === "string" ? body.customDomain : undefined), { status: 201 }); }
+      if (request.method === "DELETE" && action?.startsWith("ports/")) { requireScope(claims, "ports"); const port = Number(action.slice("ports/".length)); if (!ports?.close(id, port)) throw new ApiError(404, "FORWARD_NOT_FOUND", "Forward not found"); return new Response(null, { status: 204 }); }
       if (request.method === "POST" && action === "pause") { await registry.pause(id); return Response.json(await registry.sync(id)); }
       if (request.method === "POST" && action === "resume") { await registry.resume(id); return Response.json(await registry.sync(id)); }
-      if (request.method === "DELETE" && !action) { await registry.destroy(id); return new Response(null, { status: 204 }); }
+      if (request.method === "DELETE" && !action) { await registry.destroy(id); ports?.closeContainer(id); return new Response(null, { status: 204 }); }
       if (request.method === "POST" && action === "token") { requireScope(claims, "exec"); const body = await json(request); const scopes = ((body.scopes ?? record.policy.scopes) as Scope[]).filter(s => record.policy.scopes.includes(s)); return Response.json({ accessToken: signHs256({ sub: `container:${id}`, scopes, exp: Math.floor(Date.now() / 1000) + 3600 }, secret) }); }
       throw new ApiError(404, "NOT_FOUND", "Route not found");
     } catch (error) { return errorResponse(error); }
