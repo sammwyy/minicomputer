@@ -37,7 +37,7 @@ pub async fn read_frame<R: tokio::io::AsyncRead + Unpin>(reader: &mut R) -> io::
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_body, encode_frame};
+    use super::{decode_body, encode_frame, MAX_FRAME};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -68,5 +68,13 @@ mod tests {
                 }
             )
         );
+    }
+
+    #[tokio::test]
+    async fn rejects_frames_larger_than_the_limit() {
+        use tokio::io::AsyncWriteExt;
+        let (mut writer, mut reader) = tokio::io::duplex(16);
+        writer.write_u32(MAX_FRAME + 1).await.unwrap();
+        assert!(super::read_frame(&mut reader).await.is_err());
     }
 }

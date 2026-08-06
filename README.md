@@ -421,6 +421,8 @@ cd clients/node && pnpm build                             # the client SDK
 
 Set `MINICOMPUTER_DEV=true` for frame-level protocol tracing between orchestrator and worker, plus `/debug/containers` and `/debug/sessions` introspection routes. These are disabled and unroutable in production builds.
 
+Run the complete local verification suite with `make check` and `make test`. The TypeScript suite includes unit, HTTP integration and live-server SDK end-to-end tests; the Rust suite covers worker frame encoding and size validation.
+
 ## Project layout
 
 ```

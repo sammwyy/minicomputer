@@ -10,6 +10,15 @@ function setup() { const registry = new ContainerRegistry(new MockBackend()); re
 function auth() { return { authorization: `Bearer ${signHs256({ sub: "admin", exp: Math.floor(Date.now() / 1000) + 60 }, secret)}` }; }
 
 describe("orchestrator HTTP API", () => {
+  test("returns structured authentication and route errors", async () => {
+    const { fetch } = setup();
+    expect((await fetch(new Request("http://localhost/health"))).status).toBe(200);
+    const unauthorized = await fetch(new Request("http://localhost/containers", { method: "GET" }));
+    expect(unauthorized.status).toBe(401); expect((await unauthorized.json()).error.code).toBe("UNAUTHORIZED");
+    const notFound = await fetch(new Request("http://localhost/missing", { headers: auth() }));
+    expect(notFound.status).toBe(404); expect((await notFound.json()).error.code).toBe("NOT_FOUND");
+  });
+
   test("creates and manages a container", async () => {
     const { fetch } = setup();
     const created = await fetch(new Request("http://localhost/containers", { method: "POST", headers: { ...auth(), "content-type": "application/json" }, body: JSON.stringify({ image: "alpine:3.20", policy: { scopes: ["stats"] } }) }));

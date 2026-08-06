@@ -3,7 +3,9 @@
   "private": true,
   "workspaces": ["orchestrator", "clients/node"],
   "scripts": {
-    "test": "bun test",
+    "test": "make test",
+    "test:ts": "bun test orchestrator/tests",
+    "test:rust": "cd worker && cargo test",
     "typecheck": "tsc -b orchestrator clients/node"
   },
   "devDependencies": {

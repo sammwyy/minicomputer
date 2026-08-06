@@ -2,5 +2,5 @@
   "name": "@minicomputer/orchestrator",
   "private": true,
   "type": "module",
-  "scripts": {"dev": "bun run src/index.ts", "test": "bun test"}
+  "scripts": {"dev": "bun run src/index.ts", "test": "bun test tests", "typecheck": "tsc -p tsconfig.json"}
 }
